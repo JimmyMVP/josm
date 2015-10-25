@@ -23,6 +23,7 @@ package org.openstreetmap.josm.plugins.piclayer.layer;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Image;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -70,7 +71,7 @@ public class PicLayerFromFile extends PicLayerAbstract {
     @Override
     protected Image createImage() throws IOException {
         // Try to load file
-        Image image = null;
+        BufferedImage image = null;
 
         if (isZip) {
             try (ZipFile zipFile = new ZipFile(m_file)) {
@@ -91,7 +92,7 @@ public class PicLayerFromFile extends PicLayerAbstract {
                 if (imgEntry != null) {
                     imgNameInZip = imgEntry.getName();
                     try (InputStream is = zipFile.getInputStream(imgEntry)) {
-                        return ImageIO.read(is);
+                        return  createAlphaImage(ImageIO.read(is));
                     }
                 }
                 System.err.println("Warning: no image in zip file found");
@@ -102,7 +103,7 @@ public class PicLayerFromFile extends PicLayerAbstract {
             }
         } else {
             image = ImageIO.read( m_file );
-            return image;
+            return createAlphaImage(image);
         }
     }
 
@@ -232,6 +233,28 @@ public class PicLayerFromFile extends PicLayerAbstract {
             loadcal = true;
         }
         return loadcal;
+    }
+
+    private Image createAlphaImage(BufferedImage image) {
+        
+        BufferedImage convertedImg = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_4BYTE_ABGR);
+        
+        byte alpha;
+        for (int cx = 0; cx < image.getWidth(); cx++) {
+            for (int cy = 0; cy < image.getHeight(); cy++) {
+                int color = image.getRGB(cx, cy);
+                
+                if(color == -16777216) alpha = (byte)0;
+                else alpha = (byte)255;
+                
+                int mc = (alpha << 24) | 0x00ffffff;
+                int newcolor = color & mc;
+                convertedImg.setRGB(cx, cy, newcolor);
+
+            }
+        }
+        return convertedImg;
+
     }
 
     @Override
